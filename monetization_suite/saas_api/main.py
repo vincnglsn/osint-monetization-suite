@@ -2,6 +2,9 @@ import os
 import stripe
 import secrets
 import psycopg2
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -20,7 +23,11 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "sk_test_dummy")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_dummy")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
-# Base de données en mémoire de secours (si Supabase n'est pas configuré)
+# Configuration Email
+EMAIL_SENDER = os.getenv("EMAIL_SENDER", "")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
+
+# Base de données en mémoire de secours
 VALID_API_KEYS = {
     "premium_subscriber_key_49usd": "demo@admin.com"
 }
@@ -37,7 +44,6 @@ def init_db():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
-        # Création de la table si elle n'existe pas
         cur.execute("""
             CREATE TABLE IF NOT EXISTS api_keys (
                 api_key VARCHAR PRIMARY KEY,
@@ -45,7 +51,6 @@ def init_db():
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        # Injection de la clé démo par défaut
         cur.execute("""
             INSERT INTO api_keys (api_key, customer_email)
             VALUES ('premium_subscriber_key_49usd', 'demo@admin.com')
@@ -62,9 +67,46 @@ def init_db():
 def startup_event():
     init_db()
 
+def send_api_key_email(recipient_email: str, api_key: str):
+    """ Envoie la clé API par email au client """
+    if not EMAIL_SENDER or not EMAIL_PASSWORD:
+        print("[EMAIL] Les variables EMAIL_SENDER ou EMAIL_PASSWORD ne sont pas configurées sur Render.")
+        return
+
+    sujet = "Bienvenue dans OSINT ThreatFeed ! Voici votre clé API secrète"
+    corps_message = f"""
+    Bonjour !
+
+    Merci pour votre achat. Voici votre clé d'accès exclusive à l'API OSINT ThreatFeed :
+
+    Clé API : {api_key}
+
+    Gardez cette clé précieusement, elle vous servira de mot de passe pour vous connecter à l'API.
+    
+    À très vite,
+    L'équipe OSINT
+    """
+
+    msg = MIMEMultipart()
+    msg['From'] = EMAIL_SENDER
+    msg['To'] = recipient_email
+    msg['Subject'] = sujet
+    msg.attach(MIMEText(corps_message, 'plain'))
+
+    try:
+        # Configuration SMTP standard de Gmail
+        serveur = smtplib.SMTP('smtp.gmail.com', 587)
+        serveur.starttls()
+        serveur.login(EMAIL_SENDER, EMAIL_PASSWORD)
+        serveur.send_message(msg)
+        serveur.quit()
+        print(f"[EMAIL] 🚀 Email envoyé avec succès à {recipient_email} !")
+    except Exception as e:
+        print(f"[EMAIL ERROR] Erreur lors de l'envoi de l'email: {e}")
+
+
 @app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
-    """ Endpoint appelé par Stripe quand un client paie par carte bleue """
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature", "")
 
@@ -75,7 +117,7 @@ async def stripe_webhook(request: Request):
     except stripe.error.SignatureVerificationError:
         if STRIPE_WEBHOOK_SECRET != "whsec_dummy":
             raise HTTPException(status_code=400, detail="Invalid signature")
-        event = {"type": "checkout.session.completed", "data": {"object": {"customer_details": {"email": "nouveau@client.com"}}}}
+        event = {"type": "checkout.session.completed", "data": {"object": {"customer_details": {"email": "contact@startup.com"}}}}
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
@@ -83,10 +125,10 @@ async def stripe_webhook(request: Request):
         session_dict = session.to_dict() if hasattr(session, "to_dict") else session
         customer_email = session_dict.get("customer_details", {}).get("email", "unknown@email.com")
         
-        # 1. On génère une clé API unique et sécurisée pour le client
+        # 1. Génération de la clé API
         new_api_key = "osint_live_" + secrets.token_hex(16)
         
-        # 2. Sauvegarde de la clé
+        # 2. Sauvegarde de la clé dans Supabase
         if DATABASE_URL:
             try:
                 conn = psycopg2.connect(DATABASE_URL)
@@ -101,17 +143,18 @@ async def stripe_webhook(request: Request):
                 print(f"[TIROIR-CAISSE] 💰 [SUPABASE] Clé sauvegardée à vie pour {customer_email} !")
             except Exception as e:
                 print(f"[DATABASE ERROR] Erreur sauvegarde clé: {e}")
-                VALID_API_KEYS[new_api_key] = customer_email # Fallback mémoire
+                VALID_API_KEYS[new_api_key] = customer_email
         else:
             VALID_API_KEYS[new_api_key] = customer_email
         
         print(f"[TIROIR-CAISSE] 💰 NOUVEAU PAIEMENT DE {customer_email} ! Clé générée: {new_api_key}")
+        
+        # 3. Envoi de l'email automatique avec la clé
+        send_api_key_email(customer_email, new_api_key)
 
     return {"status": "success"}
 
-
 def verify_stripe_subscription(x_api_key: str = Header(...)):
-    """ Vérifie si la clé envoyée par le client existe bien dans notre base de données Supabase """
     if DATABASE_URL:
         try:
             conn = psycopg2.connect(DATABASE_URL)
@@ -130,11 +173,9 @@ def verify_stripe_subscription(x_api_key: str = Header(...)):
             print(f"[DATABASE ERROR] {e}")
             raise HTTPException(status_code=500, detail="Erreur interne de la base de données")
     else:
-        # Fallback si pas de DB
         if x_api_key not in VALID_API_KEYS:
             raise HTTPException(status_code=403, detail="Abonnement inactif ou clé API invalide.")
         return VALID_API_KEYS[x_api_key]
-
 
 @app.get("/api/v1/threats/ips", dependencies=[Depends(verify_stripe_subscription)])
 def get_threat_ips():
