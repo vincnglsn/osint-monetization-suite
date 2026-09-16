@@ -2,9 +2,7 @@ import os
 import stripe
 import secrets
 import psycopg2
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,8 +22,8 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_dummy")
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 # Configuration Email
-EMAIL_SENDER = os.getenv("EMAIL_SENDER", "")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "")
+EMAIL_SENDER = os.getenv("EMAIL_SENDER", "contact@osint-saas.com")
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 
 # Base de données en mémoire de secours
 VALID_API_KEYS = {
@@ -67,42 +65,35 @@ def init_db():
 def startup_event():
     init_db()
 
+
 def send_api_key_email(recipient_email: str, api_key: str):
-    """ Envoie la clé API par email au client """
-    if not EMAIL_SENDER or not EMAIL_PASSWORD:
-        print("[EMAIL] Les variables EMAIL_SENDER ou EMAIL_PASSWORD ne sont pas configurées sur Render.")
+    """ Envoie la clé API par email au client en utilisant l'API HTTP de Brevo """
+    if not BREVO_API_KEY:
+        print("[EMAIL] La variable BREVO_API_KEY n'est pas configurée sur Render.")
         return
 
-    sujet = "Bienvenue dans OSINT ThreatFeed ! Voici votre clé API secrète"
-    corps_message = f"""
-    Bonjour !
-
-    Merci pour votre achat. Voici votre clé d'accès exclusive à l'API OSINT ThreatFeed :
-
-    Clé API : {api_key}
-
-    Gardez cette clé précieusement, elle vous servira de mot de passe pour vous connecter à l'API.
+    url = "https://api.brevo.com/v3/smtp/email"
+    headers = {
+        "accept": "application/json",
+        "api-key": BREVO_API_KEY,
+        "content-type": "application/json"
+    }
     
-    À très vite,
-    L'équipe OSINT
-    """
-
-    msg = MIMEMultipart()
-    msg['From'] = EMAIL_SENDER
-    msg['To'] = recipient_email
-    msg['Subject'] = sujet
-    msg.attach(MIMEText(corps_message, 'plain'))
+    payload = {
+        "sender": {"name": "OSINT ThreatFeed", "email": EMAIL_SENDER},
+        "to": [{"email": recipient_email}],
+        "subject": "Bienvenue dans OSINT ThreatFeed ! Voici votre clé API",
+        "textContent": f"Bonjour !\n\nMerci pour votre achat. Voici votre clé d'accès exclusive à l'API OSINT ThreatFeed :\n\n{api_key}\n\nGardez cette clé précieusement, elle vous servira de mot de passe pour vous connecter à l'API.\n\nÀ très vite,\nL'équipe OSINT"
+    }
 
     try:
-        # Configuration SMTP standard de Gmail
-        serveur = smtplib.SMTP('smtp.gmail.com', 587)
-        serveur.starttls()
-        serveur.login(EMAIL_SENDER, EMAIL_PASSWORD)
-        serveur.send_message(msg)
-        serveur.quit()
-        print(f"[EMAIL] 🚀 Email envoyé avec succès à {recipient_email} !")
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()
+        print(f"[EMAIL] 🚀 Email envoyé via Brevo avec succès à {recipient_email} !")
     except Exception as e:
-        print(f"[EMAIL ERROR] Erreur lors de l'envoi de l'email: {e}")
+        print(f"[EMAIL ERROR] Erreur lors de l'envoi via Brevo: {e}")
+        if hasattr(e, 'response') and getattr(e, 'response') is not None:
+            print(f"[EMAIL ERROR DETAILS] {e.response.text}")
 
 
 @app.post("/stripe/webhook")
@@ -149,7 +140,7 @@ async def stripe_webhook(request: Request):
         
         print(f"[TIROIR-CAISSE] 💰 NOUVEAU PAIEMENT DE {customer_email} ! Clé générée: {new_api_key}")
         
-        # 3. Envoi de l'email automatique avec la clé
+        # 3. Envoi de l'email automatique via Brevo
         send_api_key_email(customer_email, new_api_key)
 
     return {"status": "success"}
