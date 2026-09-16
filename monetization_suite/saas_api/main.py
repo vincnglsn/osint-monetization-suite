@@ -49,7 +49,10 @@ async def stripe_webhook(request: Request):
     # Si le paiement est réussi
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
-        customer_email = session.get("customer_details", {}).get("email", "unknown@email.com")
+        
+        # FIX: Stripe retourne un StripeObject, on doit le convertir en dictionnaire classique
+        session_dict = session.to_dict() if hasattr(session, "to_dict") else session
+        customer_email = session_dict.get("customer_details", {}).get("email", "unknown@email.com")
         
         # 1. On génère une clé API unique et sécurisée pour le client
         new_api_key = "osint_live_" + secrets.token_hex(16)
