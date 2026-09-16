@@ -70,7 +70,7 @@
                                             <li>
                                                 <div class="tree-row">
                                                     <span class="bp4-icon bp4-icon-refresh tree-icon" style="animation: spin 2s linear infinite;"></span>
-                                                    <span class="tree-label" style="color:#8A9BA8">Connexion à l'API en cours...</span>
+                                                    <span class="tree-label" style="color:#8A9BA8">Connexion à l'API de production...</span>
                                                 </div>
                                             </li>
                                         </ul>
@@ -87,8 +87,8 @@
     <script>
         async function fetchLiveThreats() {
             try {
-                // Requête vers notre API locale
-                const response = await fetch('http://127.0.0.1:8000/api/v1/threats/ips', {
+                // Requête vers notre API de PRODUCTION Cloud (Render)
+                const response = await fetch('https://osint-monetization-suite.onrender.com/api/v1/threats/ips', {
                     method: 'GET',
                     headers: {
                         // Notre fausse clé Stripe !
