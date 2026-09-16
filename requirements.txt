@@ -3,3 +3,4 @@ uvicorn
 pydantic
 google-genai
 stripe
+psycopg2-binary

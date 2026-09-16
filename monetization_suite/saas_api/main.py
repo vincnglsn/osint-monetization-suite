@@ -1,6 +1,7 @@
 import os
 import stripe
 import secrets
+import psycopg2
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -14,12 +15,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Clés Stripe chargées depuis l'environnement Render (Sécurité)
+# Clés d'environnement
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "sk_test_dummy")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_dummy")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 
-# Base de données en mémoire pour le MVP (les clés valides)
-# On garde la clé de démo pour que le Dashboard actuel continue de fonctionner
+# Base de données en mémoire de secours (si Supabase n'est pas configuré)
 VALID_API_KEYS = {
     "premium_subscriber_key_49usd": "demo@admin.com"
 }
@@ -29,6 +30,37 @@ blocked_ips_db = [
     {"ip": "45.33.12.9", "threat": "Anomalie relais Malacca Strait", "confidence": 0.88},
     {"ip": "203.0.113.42", "threat": "Attaque DDoS (Live !)", "confidence": 0.99}
 ]
+
+def init_db():
+    if not DATABASE_URL:
+        return
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+        # Création de la table si elle n'existe pas
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS api_keys (
+                api_key VARCHAR PRIMARY KEY,
+                customer_email VARCHAR NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Injection de la clé démo par défaut
+        cur.execute("""
+            INSERT INTO api_keys (api_key, customer_email)
+            VALUES ('premium_subscriber_key_49usd', 'demo@admin.com')
+            ON CONFLICT (api_key) DO NOTHING
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+        print("[DATABASE] Supabase initialisé avec succès !")
+    except Exception as e:
+        print(f"[DATABASE ERROR] Impossible de se connecter à Supabase: {e}")
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
 
 @app.post("/stripe/webhook")
 async def stripe_webhook(request: Request):
@@ -41,37 +73,67 @@ async def stripe_webhook(request: Request):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")
     except stripe.error.SignatureVerificationError:
-        # On ignore l'erreur de signature en mode test local, mais on bloque en prod
         if STRIPE_WEBHOOK_SECRET != "whsec_dummy":
             raise HTTPException(status_code=400, detail="Invalid signature")
         event = {"type": "checkout.session.completed", "data": {"object": {"customer_details": {"email": "nouveau@client.com"}}}}
 
-    # Si le paiement est réussi
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
         
-        # FIX: Stripe retourne un StripeObject, on doit le convertir en dictionnaire classique
         session_dict = session.to_dict() if hasattr(session, "to_dict") else session
         customer_email = session_dict.get("customer_details", {}).get("email", "unknown@email.com")
         
         # 1. On génère une clé API unique et sécurisée pour le client
         new_api_key = "osint_live_" + secrets.token_hex(16)
         
-        # 2. On l'ajoute à notre base de clients payants
-        VALID_API_KEYS[new_api_key] = customer_email
+        # 2. Sauvegarde de la clé
+        if DATABASE_URL:
+            try:
+                conn = psycopg2.connect(DATABASE_URL)
+                cur = conn.cursor()
+                cur.execute(
+                    "INSERT INTO api_keys (api_key, customer_email) VALUES (%s, %s)",
+                    (new_api_key, customer_email)
+                )
+                conn.commit()
+                cur.close()
+                conn.close()
+                print(f"[TIROIR-CAISSE] 💰 [SUPABASE] Clé sauvegardée à vie pour {customer_email} !")
+            except Exception as e:
+                print(f"[DATABASE ERROR] Erreur sauvegarde clé: {e}")
+                VALID_API_KEYS[new_api_key] = customer_email # Fallback mémoire
+        else:
+            VALID_API_KEYS[new_api_key] = customer_email
         
-        # 3. Dans la vraie vie, on utiliserait un service email pour envoyer la clé au client ici
         print(f"[TIROIR-CAISSE] 💰 NOUVEAU PAIEMENT DE {customer_email} ! Clé générée: {new_api_key}")
 
     return {"status": "success"}
 
 
 def verify_stripe_subscription(x_api_key: str = Header(...)):
-    """ Vérifie si la clé envoyée par le client existe bien dans notre base de données """
-    if x_api_key not in VALID_API_KEYS:
-        raise HTTPException(status_code=403, detail="Abonnement inactif ou clé API invalide.")
-    # Retourne l'email du client pour les logs
-    return VALID_API_KEYS[x_api_key]
+    """ Vérifie si la clé envoyée par le client existe bien dans notre base de données Supabase """
+    if DATABASE_URL:
+        try:
+            conn = psycopg2.connect(DATABASE_URL)
+            cur = conn.cursor()
+            cur.execute("SELECT customer_email FROM api_keys WHERE api_key = %s", (x_api_key,))
+            row = cur.fetchone()
+            cur.close()
+            conn.close()
+            
+            if not row:
+                raise HTTPException(status_code=403, detail="Abonnement inactif ou clé API invalide.")
+            return row[0]
+        except Exception as e:
+            if isinstance(e, HTTPException):
+                raise e
+            print(f"[DATABASE ERROR] {e}")
+            raise HTTPException(status_code=500, detail="Erreur interne de la base de données")
+    else:
+        # Fallback si pas de DB
+        if x_api_key not in VALID_API_KEYS:
+            raise HTTPException(status_code=403, detail="Abonnement inactif ou clé API invalide.")
+        return VALID_API_KEYS[x_api_key]
 
 
 @app.get("/api/v1/threats/ips", dependencies=[Depends(verify_stripe_subscription)])
