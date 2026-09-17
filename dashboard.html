@@ -126,10 +126,7 @@
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <Button intent={Intent.PRIMARY} icon="refresh" onClick={fetchThreats} loading={loading}>Actualiser le flux</Button>
-                            <Button intent={Intent.SUCCESS} icon="export" onClick={() => {
-                                // Redirige vers le tÃ©lÃ©chargement CSV
-                                window.open(`https://osint-monetization-suite.onrender.com/api/v1/threats/export?min_confidence=0.0`, '_blank');
-                            }}>Export Pare-Feu (CSV)</Button>
+                            <Button intent={Intent.SUCCESS} icon="export" onClick={() => window.open('https://osint-monetization-suite.onrender.com/api/v1/threats/export?min_confidence=0.0', '_blank')}>Export Pare-Feu (CSV)</Button>
                         </div>
                     </div>
 
@@ -214,8 +211,8 @@
                                     ))}
                                     {threats.length === 0 && !loading && !error && (
                                         <tr>
-                                            <td colSpan="5" style={{ textAlign: 'center', padding: '20px' }}>
-                                                Aucune menace détectée.
+                                            <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                                                Aucune menace dÃ©tectÃ©e.
                                             </td>
                                         </tr>
                                     )}
