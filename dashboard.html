@@ -115,7 +115,22 @@
                                 borderWidth: 2
                             }]
                         },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#F5F8FA' } } } }
+                        options: { 
+                            responsive: true, 
+                            maintainAspectRatio: false, 
+                            plugins: { 
+                                legend: { 
+                                    display: false 
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return ' ' + context.label + ' : ' + context.raw;
+                                        }
+                                    }
+                                }
+                            } 
+                        }
                     });
                 }
             };
