@@ -14,13 +14,18 @@ class OsintThreatFeedClient:
             "Content-Type": "application/json"
         }
 
-    def get_threats(self):
+    def get_threats(self, limit: int = 100, min_confidence: float = 0.0):
         """
         Récupère la liste des dernières menaces OSINT identifiées.
+        Possibilité de filtrer par limite et par indice de confiance minimum.
         """
         url = f"{self.base_url}/threats/ips"
+        params = {
+            "limit": limit,
+            "min_confidence": min_confidence
+        }
         try:
-            response = requests.get(url, headers=self.headers)
+            response = requests.get(url, headers=self.headers, params=params)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.HTTPError as err:
@@ -41,16 +46,16 @@ if __name__ == "__main__":
     client = OsintThreatFeedClient(api_key=CLIENT_API_KEY)
     
     try:
-        print("Récupération des données en cours...")
-        data = client.get_threats()
+        print("Recuperation des donnees (Filtre: min_confidence=0.90, max 5)...")
+        data = client.get_threats(limit=5, min_confidence=0.90)
         
-        print("\n✅ Connexion réussie !")
-        print(f"Source des données : {data.get('source')}\n")
+        print("\n[SUCCES] Connexion reussie !")
+        print(f"Source des donnees : {data.get('source')}")
+        print(f"Total renvoye : {data.get('count', len(data.get('data', [])))}\n")
         
         threats = data.get("data", [])
-        print(f"[{len(threats)} menaces détectées] :")
         for t in threats:
             print(f" - IP: {t.get('ip')} | Menace: {t.get('threat')} | Confiance: {t.get('confidence')}")
             
     except Exception as e:
-        print(f"❌ Erreur : {e}")
+        print(f"[ERREUR] : {e}")

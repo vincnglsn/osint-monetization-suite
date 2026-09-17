@@ -211,23 +211,60 @@ def verify_stripe_subscription(x_api_key: str = Header(...)):
             raise HTTPException(status_code=403, detail="Abonnement inactif ou clé API invalide.")
         return VALID_API_KEYS[x_api_key]
 
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "super_secret_admin_osiris_2026")
+
+def verify_admin_key(x_admin_key: str = Header(...)):
+    if x_admin_key != ADMIN_API_KEY:
+        raise HTTPException(status_code=403, detail="Accès admin refusé.")
+    return True
+
 @app.get("/api/v1/threats/ips", dependencies=[Depends(verify_stripe_subscription)])
-@limiter.limit("30/minute")  # Protection anti-abus : 30 requêtes max par minute par IP
-def get_threat_ips(request: Request):
+@limiter.limit("60/minute")  # Limite augmentée suite à l'optimisation
+def get_threat_ips(request: Request, limit: int = 100, min_confidence: float = 0.0):
+    """
+    Récupère les menaces.
+    Filtres disponibles : limit (défaut 100), min_confidence (ex: 0.90)
+    """
     if DATABASE_URL:
         try:
             conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
             cur = conn.cursor()
-            cur.execute("SELECT ip, threat_description as threat, confidence, detected_at FROM threat_intelligence ORDER BY detected_at DESC")
+            cur.execute(
+                "SELECT ip, threat_description as threat, confidence, detected_at FROM threat_intelligence WHERE confidence >= %s ORDER BY detected_at DESC LIMIT %s",
+                (min_confidence, limit)
+            )
             rows = cur.fetchall()
             cur.close()
             conn.close()
-            
-            # Formatage pour matcher l'ancien dictionnaire
-            return {"status": "success", "source": "OSIRIS AI (Supabase)", "data": rows}
+            return {"status": "success", "source": "OSIRIS AI (Supabase)", "count": len(rows), "data": rows}
         except Exception as e:
-            print(f"[DATABASE ERROR] Erreur lors de la récupération des menaces: {e}")
-            # Fallback sur les données en mémoire
+            print(f"[DATABASE ERROR] {e}")
             return {"status": "success", "source": "OSIRIS AI (Fallback Mém)", "data": blocked_ips_db}
     
-    return {"status": "success", "source": "OSIRIS AI (Mémoire)", "data": blocked_ips_db}
+    # Fallback mémoire
+    filtered_db = [t for t in blocked_ips_db if t["confidence"] >= min_confidence][:limit]
+    return {"status": "success", "source": "OSIRIS AI (Mémoire)", "count": len(filtered_db), "data": filtered_db}
+
+@app.post("/api/v1/admin/threats", dependencies=[Depends(verify_admin_key)])
+def inject_new_threat(request: Request, ip: str, threat_description: str, confidence: float):
+    """
+    [ADMIN] Injecte une nouvelle menace en base de données sans redémarrer le serveur.
+    """
+    if not DATABASE_URL:
+        raise HTTPException(status_code=500, detail="Base de données non configurée.")
+    
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO threat_intelligence (ip, threat_description, confidence)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (ip) DO UPDATE SET confidence = EXCLUDED.confidence, detected_at = CURRENT_TIMESTAMP
+        """, (ip, threat_description, confidence))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": f"Menace {ip} injectée avec succès."}
+    except Exception as e:
+        print(f"[DATABASE ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'insertion.")
