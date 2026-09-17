@@ -32,8 +32,16 @@ VALID_API_KEYS = {
 
 blocked_ips_db = [
     {"ip": "192.168.1.100", "threat": "Port Scanning automatisé (22, 443)", "confidence": 0.95},
-    {"ip": "45.33.12.9", "threat": "Anomalie relais Malacca Strait", "confidence": 0.88},
-    {"ip": "203.0.113.42", "threat": "Attaque DDoS (Live !)", "confidence": 0.99}
+    {"ip": "45.33.12.9", "threat": "Anomalie relais Malacca Strait - Nœud Alpha", "confidence": 0.88},
+    {"ip": "203.0.113.42", "threat": "Attaque DDoS (Live !)", "confidence": 0.99},
+    # Nouvelles menaces injectées automatiquement suite au rapport OSIRIS AI
+    {"ip": "45.33.12.10", "threat": "Anomalie relais Malacca Strait - Nœud Beta", "confidence": 0.92},
+    {"ip": "45.33.12.11", "threat": "Anomalie relais Malacca Strait - Exfiltration", "confidence": 0.94},
+    {"ip": "45.33.12.15", "threat": "Anomalie relais Malacca Strait - C2 Server", "confidence": 0.97},
+    {"ip": "118.99.22.1", "threat": "BGP Hijacking - Asie-Pacifique (AS45999)", "confidence": 0.89},
+    {"ip": "118.99.22.4", "threat": "BGP Hijacking - Asie-Pacifique (AS45999)", "confidence": 0.91},
+    {"ip": "185.10.55.20", "threat": "Infrastructure Telecom Scan - Europe de l'Est", "confidence": 0.85},
+    {"ip": "185.10.55.22", "threat": "Infrastructure Telecom Scan - Europe de l'Est", "confidence": 0.86},
 ]
 
 def init_db():
