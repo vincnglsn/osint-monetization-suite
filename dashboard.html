@@ -34,10 +34,6 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     
-    <!-- Blueprint JS -->
-    <script src="https://unpkg.com/@blueprintjs/core@5.0.0/lib/umd/blueprint.js"></script>
-    <script src="https://unpkg.com/@blueprintjs/icons@5.0.0/lib/umd/blueprint-icons.js"></script>
-
     <!-- Chart.js pour les graphiques -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -49,13 +45,12 @@
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { Card, Elevation, HTMLTable, Tag, Intent, Button, Icon, Tooltip, Spinner, Callout } = Blueprint.Core;
 
         function Dashboard() {
             const [threats, setThreats] = useState([]);
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
-            const [apiKey, setApiKey] = useState("demo_key_123"); // Clé par défaut valide sur l'API
+            const [apiKey, setApiKey] = useState("demo_key_123");
 
             const fetchThreats = async () => {
                 setLoading(true);
@@ -86,7 +81,6 @@
             };
 
             const renderCharts = (data) => {
-                // Répartition par type
                 const threatTypes = {};
                 data.forEach(t => {
                     const type = t.threat || t.threat_description || 'Inconnu';
@@ -112,7 +106,6 @@
                 }
             };
 
-            // Charger les données au montage
             useEffect(() => {
                 fetchThreats();
             }, []);
@@ -121,17 +114,24 @@
                 <div className="dashboard-container">
                     <div className="header">
                         <div>
-                            <h1 className="bp5-heading" style={{display: 'flex', alignItems: 'center'}}><Icon icon="shield" size={24} style={{ marginRight: '10px', color: '#48AFF0' }} /> OSIRIS AI Live Feed</h1>
+                            <h1 className="bp5-heading" style={{display: 'flex', alignItems: 'center'}}>
+                                <span className="bp5-icon-shield" style={{ marginRight: '10px', color: '#48AFF0' }}></span> 
+                                OSIRIS AI Live Feed
+                            </h1>
                             <p className="bp5-text-muted">Tableau de bord de surveillance OSINT (Visualisations Avancées)</p>
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            <Button intent={Intent.PRIMARY} icon="refresh" onClick={fetchThreats} loading={loading}>Actualiser le flux</Button>
-                            <Button intent={Intent.SUCCESS} icon="export" onClick={() => window.open('https://osint-monetization-suite.onrender.com/api/v1/threats/export?min_confidence=0.0', '_blank')}>Export Pare-Feu (CSV)</Button>
+                            <button className="bp5-button bp5-intent-primary bp5-icon-refresh" onClick={fetchThreats} disabled={loading}>
+                                {loading ? 'Chargement...' : 'Actualiser le flux'}
+                            </button>
+                            <button className="bp5-button bp5-intent-success bp5-icon-export" onClick={() => window.open('https://osint-monetization-suite.onrender.com/api/v1/threats/export?min_confidence=0.0', '_blank')}>
+                                Export Pare-Feu (CSV)
+                            </button>
                         </div>
                     </div>
 
                     <div style={{ marginBottom: '20px' }}>
-                        <Card elevation={Elevation.ONE} style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <div className="bp5-card bp5-elevation-1" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
                             <strong>Clé API :</strong>
                             <input 
                                 className="bp5-input" 
@@ -140,38 +140,37 @@
                                 onChange={(e) => setApiKey(e.target.value)} 
                                 style={{ width: '300px' }}
                             />
-                        </Card>
+                        </div>
                     </div>
 
                     {error && (
-                        <Callout intent={Intent.DANGER} icon="error" style={{ marginBottom: '20px' }}>
+                        <div className="bp5-callout bp5-intent-danger bp5-icon-error" style={{ marginBottom: '20px' }}>
                             {error}
-                        </Callout>
+                        </div>
                     )}
 
-                    {/* Section Graphique */}
                     <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', height: '250px' }}>
-                        <Card elevation={Elevation.TWO} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                        <div className="bp5-card bp5-elevation-2" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                             <h4 className="bp5-heading">Répartition des menaces actives</h4>
                             <div style={{ flex: 1, position: 'relative' }}>
                                 <canvas id="threatChart"></canvas>
                             </div>
-                        </Card>
-                        <Card elevation={Elevation.TWO} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                        </div>
+                        <div className="bp5-card bp5-elevation-2" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
                             <h4 className="bp5-heading">Statut du Réseau OSIRIS</h4>
                             <div style={{ fontSize: '48px', color: '#E73C3E', fontWeight: 'bold' }}>{threats.length}</div>
                             <p className="bp5-text-muted">IP & Domaines bloqués en temps réel</p>
-                            <Tag intent={Intent.SUCCESS} icon="tick-circle" large={true} style={{ marginTop: '10px'}}>Système BGP & DNS Sécurisés</Tag>
-                        </Card>
+                            <span className="bp5-tag bp5-intent-success bp5-icon-tick-circle bp5-large" style={{ marginTop: '10px'}}>Système BGP & DNS Sécurisés</span>
+                        </div>
                     </div>
 
-                    <Card elevation={Elevation.TWO}>
+                    <div className="bp5-card bp5-elevation-2">
                         <h3 className="bp5-heading" style={{ marginBottom: '15px' }}>Menaces Identifiées (IP & Phishing)</h3>
                         
                         {loading && threats.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '40px' }}><Spinner /></div>
+                            <div style={{ textAlign: 'center', padding: '40px' }}><div className="bp5-spinner"><div className="bp5-spinner-animation"></div></div></div>
                         ) : (
-                            <HTMLTable interactive={true} condensed={true} striped={true} style={{ width: '100%' }}>
+                            <table className="bp5-html-table bp5-html-table-striped bp5-html-table-condensed bp5-interactive" style={{ width: '100%' }}>
                                 <thead>
                                     <tr>
                                         <th>Cible (IP / Domaine)</th>
@@ -186,7 +185,7 @@
                                     {threats.map((threat, idx) => (
                                         <tr key={idx}>
                                             <td><strong style={{ fontFamily: 'monospace', color: threat.type === 'IP' ? '#48AFF0' : '#F29D49' }}>{threat.target}</strong></td>
-                                            <td><Tag intent={threat.type === 'IP' ? Intent.PRIMARY : Intent.WARNING}>{threat.type}</Tag></td>
+                                            <td><span className={`bp5-tag ${threat.type === 'IP' ? 'bp5-intent-primary' : 'bp5-intent-warning'}`}>{threat.type}</span></td>
                                             <td>{threat.threat || threat.threat_description}</td>
                                             <td>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -197,29 +196,25 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <Tag intent={Intent.DANGER} icon="warning-sign">BLOQUÉ</Tag>
+                                                <span className="bp5-tag bp5-intent-danger bp5-icon-warning-sign">BLOQUÉ</span>
                                             </td>
                                             <td>
-                                                <Tooltip content="Mettre sur liste blanche (Simulation)">
-                                                    <Button icon="unlock" minimal={true} small={true} />
-                                                </Tooltip>
-                                                <Tooltip content="Voir les logs (Simulation)">
-                                                    <Button icon="document" minimal={true} small={true} />
-                                                </Tooltip>
+                                                <button className="bp5-button bp5-minimal bp5-small bp5-icon-unlock" title="Mettre sur liste blanche (Simulation)"></button>
+                                                <button className="bp5-button bp5-minimal bp5-small bp5-icon-document" title="Voir les logs (Simulation)"></button>
                                             </td>
                                         </tr>
                                     ))}
                                     {threats.length === 0 && !loading && !error && (
                                         <tr>
                                             <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
-                                                Aucune menace dÃ©tectÃ©e.
+                                                Aucune menace détectée.
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
-                            </HTMLTable>
+                            </table>
                         )}
-                    </Card>
+                    </div>
                 </div>
             );
         }
