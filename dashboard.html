@@ -124,10 +124,12 @@
                             <h1 className="bp5-heading" style={{display: 'flex', alignItems: 'center'}}><Icon icon="shield" size={24} style={{ marginRight: '10px', color: '#48AFF0' }} /> OSIRIS AI Live Feed</h1>
                             <p className="bp5-text-muted">Tableau de bord de surveillance OSINT (Visualisations Avancées)</p>
                         </div>
-                        <div>
-                            <Button intent={Intent.PRIMARY} icon="refresh" onClick={fetchThreats} loading={loading}>
-                                Actualiser le flux
-                            </Button>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                            <Button intent={Intent.PRIMARY} icon="refresh" onClick={fetchThreats} loading={loading}>Actualiser le flux</Button>
+                            <Button intent={Intent.SUCCESS} icon="export" onClick={() => {
+                                // Redirige vers le tÃ©lÃ©chargement CSV
+                                window.open(`https://osint-monetization-suite.onrender.com/api/v1/threats/export?min_confidence=0.0`, '_blank');
+                            }}>Export Pare-Feu (CSV)</Button>
                         </div>
                     </div>
 
