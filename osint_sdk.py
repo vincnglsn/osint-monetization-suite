@@ -36,6 +36,20 @@ class OsintThreatFeedClient:
             else:
                 raise Exception(f"Erreur HTTP: {err}")
 
+    def export_firewall_rules(self, min_confidence: float = 0.0):
+        """
+        Télécharge la liste brute des IP (format texte/CSV) prête à être injectée
+        dans un firewall matériel (ex: Palo Alto, pfSense).
+        """
+        url = f"{self.base_url}/threats/export"
+        params = {"min_confidence": min_confidence}
+        try:
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.HTTPError as err:
+            raise Exception(f"Erreur d'exportation HTTP: {err}")
+
 if __name__ == "__main__":
     # Exemple d'utilisation
     print("--- Test du SDK OSINT ThreatFeed ---")

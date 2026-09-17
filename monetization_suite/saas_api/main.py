@@ -4,6 +4,7 @@ import secrets
 import psycopg2
 import requests
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
+from fastapi.responses import PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg2.extras import RealDictCursor
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -271,6 +272,34 @@ def get_threat_ips(request: Request, limit: int = 100, min_confidence: float = 0
     # Fallback mémoire
     filtered_db = [t for t in blocked_ips_db if t["confidence"] >= min_confidence][:limit]
     return {"status": "success", "source": "OSIRIS AI (Mémoire)", "count": len(filtered_db), "data": filtered_db}
+
+@app.get("/api/v1/threats/export", dependencies=[Depends(verify_stripe_subscription)])
+@limiter.limit("10/minute")
+def export_threats_firewall(request: Request, min_confidence: float = 0.0):
+    """
+    [NOUVEAU] Export des adresses IP au format texte brut (CSV) pour intégration directe 
+    dans les pare-feux (Palo Alto, Fortinet, pfSense).
+    """
+    csv_content = "# OSINT ThreatFeed - Export Auto-généré\n# Format : IP\n"
+    if DATABASE_URL:
+        try:
+            conn = psycopg2.connect(DATABASE_URL)
+            cur = conn.cursor()
+            cur.execute("SELECT ip FROM threat_intelligence WHERE confidence >= %s ORDER BY detected_at DESC", (min_confidence,))
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+            for r in rows:
+                csv_content += f"{r[0]}\n"
+            return PlainTextResponse(content=csv_content)
+        except Exception as e:
+            print(f"[DATABASE ERROR] {e}")
+    
+    # Fallback mémoire
+    for t in blocked_ips_db:
+        if t["confidence"] >= min_confidence:
+            csv_content += f"{t['ip']}\n"
+    return PlainTextResponse(content=csv_content)
 
 @app.post("/api/v1/admin/threats", dependencies=[Depends(verify_admin_key)])
 def inject_new_threat(request: Request, ip: str, threat_description: str, confidence: float):
