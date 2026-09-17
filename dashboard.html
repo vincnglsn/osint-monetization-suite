@@ -49,7 +49,7 @@
 
     <script type="text/babel">
         const { useState, useEffect } = React;
-        const { Card, Elevation, HTMLTable, Tag, Intent, Button, Icon, Tooltip, Spinner, Callout } = Blueprint.Core;
+        const { Card, Elevation, HTMLTable, Tag, Intent, Button, Icon, Tooltip, Spinner, Callout } = Blueprint;
 
         function Dashboard() {
             const [threats, setThreats] = useState([]);
@@ -66,7 +66,7 @@
                         fetch("https://osint-monetization-suite.onrender.com/api/v1/threats/domains", { headers: { "x-api-key": apiKey } })
                     ]);
                     
-                    if (!ipRes.ok || !domainRes.ok) throw new Error(`Erreur API - ClÃ© invalide ou serveur injoignable.`);
+                    if (!ipRes.ok || !domainRes.ok) throw new Error(`Erreur API - Clé invalide ou serveur injoignable.`);
                     
                     const ipData = await ipRes.json();
                     const domainData = await domainRes.json();
