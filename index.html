@@ -2,132 +2,64 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>OSINT Dashboard (Live)</title>
-    <!-- CSS Blueprint 4 -->
-    <link href="https://unpkg.com/normalize.css@8.0.1/normalize.css" rel="stylesheet" />
-    <link href="https://unpkg.com/@blueprintjs/icons@4/lib/css/blueprint-icons.css" rel="stylesheet" />
-    <link href="https://unpkg.com/@blueprintjs/core@4/lib/css/blueprint.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSINT ThreatFeed - Protégez vos infrastructures</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #293742; padding: 40px; color: white; font-family: sans-serif; }
-        .container { max-width: 800px; margin: auto; }
-        .custom-card { padding: 30px; background-color: #30404D; border-radius: 3px; }
-        .inner-card { background-color: #182026; padding: 15px; border-radius: 3px; }
-        .mock-tree { list-style: none; padding-left: 0; margin: 0; }
-        .mock-tree ul { list-style: none; padding-left: 24px; margin-top: 5px; border-left: 1px solid #4A5D6B; margin-left: 12px; }
-        .mock-tree li { margin-bottom: 8px; display: flex; flex-direction: column; }
-        .tree-row { display: flex; align-items: center; padding: 5px; border-radius: 3px; transition: background 0.2s; }
-        .tree-row:hover { background-color: rgba(255, 255, 255, 0.05); }
-        .tree-icon { margin-right: 10px; color: #8A9BA8; }
-        .tree-label { font-size: 14px; font-weight: 500; }
-        .tree-secondary { margin-left: auto; color: #8A9BA8; font-size: 12px; }
-        .text-danger { color: #FF7373; }
-        .live-badge { background-color: #FF7373; color: white; padding: 2px 6px; border-radius: 12px; font-size: 10px; margin-left: 10px; font-weight: bold; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        body { background-color: #0f172a; color: #f8fafc; }
+        .glow { box-shadow: 0 0 40px rgba(56, 189, 248, 0.2); }
     </style>
 </head>
-<body class="bp4-dark">
-    <div class="container">
-        <div class="bp4-card bp4-elevation-3 custom-card">
-            <h3 class="bp4-heading">Convergence OSINT : Analyse des Menaces <span class="live-badge">LIVE API</span></h3>
-            <div class="bp4-divider"></div>
-            <br/>
+<body class="antialiased font-sans">
+    <div class="max-w-6xl mx-auto px-4 py-16">
+        <!-- Header -->
+        <header class="text-center mb-20">
+            <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 mb-6">
+                Le Renseignement Cyber en Temps Réel
+            </h1>
+            <p class="text-xl text-slate-400 max-w-2xl mx-auto">
+                Accédez à notre API privée OSINT alimentée par l'intelligence artificielle OSIRIS. Bloquez les menaces avant qu'elles ne frappent votre infrastructure.
+            </p>
+        </header>
 
-            <div class="bp4-callout bp4-intent-danger">
-                <h4 class="bp4-heading">
-                    <span class="bp4-icon bp4-icon-error"></span>
-                    ALERTE CRITIQUE : SCANS RÉSEAU DÉTECTÉS
-                </h4>
-                Un pic d'activité de scans de ports a été détecté. Le secteur des <b>Semi-conducteurs</b> est directement menacé.
+        <!-- Features -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-20">
+            <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 glow">
+                <div class="text-cyan-400 text-3xl mb-4">🌍</div>
+                <h3 class="text-xl font-bold mb-3">Couverture Mondiale</h3>
+                <p class="text-slate-400">Détection d'anomalies BGP, relais malveillants et botnets en temps réel à travers le globe.</p>
             </div>
-            <br/><br/>
-
-            <h3 class="bp4-heading">Arborescence d'Attaque (Drill-down Palantir)</h3>
-            
-            <div class="bp4-card inner-card">
-                <ul class="mock-tree">
-                    <li>
-                        <div class="tree-row">
-                            <span class="bp4-icon bp4-icon-chevron-down tree-icon"></span>
-                            <span class="bp4-icon bp4-icon-globe-network tree-icon"></span>
-                            <span class="tree-label">Asie du Sud-Est</span>
-                        </div>
-                        <ul>
-                            <li>
-                                <div class="tree-row">
-                                    <span class="bp4-icon bp4-icon-warning-sign tree-icon text-danger"></span>
-                                    <span class="tree-label text-danger">Détroit de Malacca (Congestion maritime)</span>
-                                    <span class="tree-secondary">14 Dark Ships</span>
-                                </div>
-                                <ul>
-                                    <li>
-                                        <div class="tree-row">
-                                            <span class="bp4-icon bp4-icon-chevron-down tree-icon"></span>
-                                            <span class="bp4-icon bp4-icon-desktop tree-icon"></span>
-                                            <span class="tree-label">Infrastructures Cloud (Singapour)</span>
-                                        </div>
-                                        <!-- LISTE DYNAMIQUE INJECTÉE PAR L'API -->
-                                        <ul id="dynamic-ip-list">
-                                            <li>
-                                                <div class="tree-row">
-                                                    <span class="bp4-icon bp4-icon-refresh tree-icon" style="animation: spin 2s linear infinite;"></span>
-                                                    <span class="tree-label" style="color:#8A9BA8">Connexion à l'API de production...</span>
-                                                </div>
-                                            </li>
-                                        </ul>
-                                    </li>
-                                </ul>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
+            <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 glow">
+                <div class="text-cyan-400 text-3xl mb-4">⚡</div>
+                <h3 class="text-xl font-bold mb-3">API Ultra-Rapide</h3>
+                <p class="text-slate-400">Intégration en 2 lignes de code avec notre SDK Python. Temps de réponse inférieur à 50ms.</p>
+            </div>
+            <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 glow">
+                <div class="text-cyan-400 text-3xl mb-4">🛡️</div>
+                <h3 class="text-xl font-bold mb-3">Qualité "Palantir"</h3>
+                <p class="text-slate-400">Dashboard interactif fourni pour vos analystes SOC (Security Operations Center).</p>
             </div>
         </div>
+
+        <!-- Pricing -->
+        <div class="bg-slate-800 rounded-3xl p-10 border border-slate-700 max-w-lg mx-auto text-center glow relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 to-blue-600"></div>
+            <h2 class="text-3xl font-bold mb-4">Accès API Premium</h2>
+            <div class="text-5xl font-extrabold mb-6">49€ <span class="text-lg text-slate-400 font-normal">/ paiement unique</span></div>
+            <ul class="text-left text-slate-300 space-y-3 mb-8">
+                <li>✅ Clé API générée instantanément</li>
+                <li>✅ Accès illimité à la base de données OSINT</li>
+                <li>✅ SDK Python Inclus</li>
+                <li>✅ Mises à jour automatisées par OSIRIS AI</li>
+                <li>✅ Dashboard BlueprintJS fourni</li>
+            </ul>
+            
+            <!-- REMPLACEZ CE LIEN PAR VOTRE LIEN DE PAIEMENT STRIPE -->
+            <a href="REMPLACEZ_PAR_VOTRE_LIEN_STRIPE" class="block w-full py-4 px-6 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl font-bold text-lg transition-colors">
+                Obtenir ma clé d'accès immédiate
+            </a>
+            <p class="text-slate-500 text-sm mt-4">Paiement sécurisé par Stripe.</p>
+        </div>
     </div>
-
-    <script>
-        async function fetchLiveThreats() {
-            try {
-                // Requête vers notre API de PRODUCTION Cloud (Render)
-                const response = await fetch('https://osint-monetization-suite.onrender.com/api/v1/threats/ips', {
-                    method: 'GET',
-                    headers: {
-                        // Notre fausse clé Stripe !
-                        'x-api-key': 'premium_subscriber_key_49usd'
-                    }
-                });
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    const list = document.getElementById('dynamic-ip-list');
-                    list.innerHTML = ''; // On vide le texte de chargement
-                    
-                    // On boucle sur les données de l'API pour créer les lignes visuelles
-                    data.data.forEach(item => {
-                        const li = document.createElement('li');
-                        li.innerHTML = `
-                            <div class="tree-row">
-                                <span class="bp4-icon bp4-icon-ip-address tree-icon"></span>
-                                <span class="tree-label">${item.ip} <span style="color:#8A9BA8; font-weight:normal">(${item.threat})</span></span>
-                            </div>
-                        `;
-                        list.appendChild(li);
-                    });
-                }
-            } catch (error) {
-                console.error('Erreur API:', error);
-                document.getElementById('dynamic-ip-list').innerHTML = `
-                    <li>
-                        <div class="tree-row">
-                            <span class="bp4-icon bp4-icon-error tree-icon text-danger"></span>
-                            <span class="tree-label text-danger">Erreur: API hors ligne ou clé invalide</span>
-                        </div>
-                    </li>
-                `;
-            }
-        }
-
-        // Lancement immédiat au chargement de la page
-        setTimeout(fetchLiveThreats, 500); // Petit délai pour voir l'animation de chargement
-    </script>
 </body>
 </html>
