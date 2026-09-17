@@ -50,24 +50,38 @@
             const [threats, setThreats] = useState([]);
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
-            const [apiKey, setApiKey] = useState("demo_key_123");
+            const [apiKey, setApiKey] = useState("premium_subscriber_key_49usd");
 
             const fetchThreats = async () => {
                 setLoading(true);
                 setError(null);
                 try {
-                    const [ipRes, domainRes] = await Promise.all([
-                        fetch("https://osint-monetization-suite.onrender.com/api/v1/threats/ips", { headers: { "x-api-key": apiKey } }),
-                        fetch("https://osint-monetization-suite.onrender.com/api/v1/threats/domains", { headers: { "x-api-key": apiKey } })
-                    ]);
-                    
-                    if (!ipRes.ok || !domainRes.ok) throw new Error(`Erreur API - Clé invalide ou serveur injoignable.`);
-                    
-                    const ipData = await ipRes.json();
-                    const domainData = await domainRes.json();
-                    
-                    const ips = (ipData.data || []).map(t => ({ ...t, target: t.ip, type: 'IP' }));
-                    const domains = (domainData.data || []).map(t => ({ ...t, target: t.domain, type: 'Domaine' }));
+                    // Fetch IP threats
+                    let ips = [];
+                    try {
+                        const ipRes = await fetch("https://osint-monetization-suite.onrender.com/api/v1/threats/ips", { headers: { "x-api-key": apiKey } });
+                        if (ipRes.ok) {
+                            const ipData = await ipRes.json();
+                            ips = (ipData.data || []).map(t => ({ ...t, target: t.ip, type: 'IP' }));
+                        } else if (ipRes.status === 403) {
+                            throw new Error("Abonnement inactif ou clé API invalide.");
+                        }
+                    } catch (e) {
+                        console.warn("IP fetch error:", e);
+                        if (e.message.includes("Abonnement inactif")) throw e;
+                    }
+
+                    // Fetch Domain threats (might be 404 if Render hasn't deployed yet)
+                    let domains = [];
+                    try {
+                        const domainRes = await fetch("https://osint-monetization-suite.onrender.com/api/v1/threats/domains", { headers: { "x-api-key": apiKey } });
+                        if (domainRes.ok) {
+                            const domainData = await domainRes.json();
+                            domains = (domainData.data || []).map(t => ({ ...t, target: t.domain, type: 'Domaine' }));
+                        }
+                    } catch (e) {
+                        console.warn("Domain fetch error (probably not deployed yet):", e);
+                    }
                     
                     const combined = [...ips, ...domains].sort((a, b) => b.confidence - a.confidence);
 
@@ -115,24 +129,24 @@
                     <div className="header">
                         <div>
                             <h1 className="bp5-heading" style={{display: 'flex', alignItems: 'center'}}>
-                                <span className="bp5-icon-shield" style={{ marginRight: '10px', color: '#48AFF0' }}></span> 
+                                <span style={{ marginRight: '10px', fontSize: '24px' }}>🛡️</span> 
                                 OSIRIS AI Live Feed
                             </h1>
                             <p className="bp5-text-muted">Tableau de bord de surveillance OSINT (Visualisations Avancées)</p>
                         </div>
                         <div style={{ display: 'flex', gap: '10px' }}>
-                            <button className="bp5-button bp5-intent-primary bp5-icon-refresh" onClick={fetchThreats} disabled={loading}>
-                                {loading ? 'Chargement...' : 'Actualiser le flux'}
+                            <button className="bp5-button bp5-intent-primary" onClick={fetchThreats} disabled={loading}>
+                                🔄 {loading ? 'Chargement...' : 'Actualiser le flux'}
                             </button>
-                            <button className="bp5-button bp5-intent-success bp5-icon-export" onClick={() => window.open('https://osint-monetization-suite.onrender.com/api/v1/threats/export?min_confidence=0.0', '_blank')}>
-                                Export Pare-Feu (CSV)
+                            <button className="bp5-button bp5-intent-success" onClick={() => window.open('https://osint-monetization-suite.onrender.com/api/v1/threats/export?min_confidence=0.0', '_blank')}>
+                                📥 Export Pare-Feu (CSV)
                             </button>
                         </div>
                     </div>
 
                     <div style={{ marginBottom: '20px' }}>
                         <div className="bp5-card bp5-elevation-1" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                            <strong>Clé API :</strong>
+                            <strong>🔑 Clé API :</strong>
                             <input 
                                 className="bp5-input" 
                                 type="text" 
@@ -144,28 +158,28 @@
                     </div>
 
                     {error && (
-                        <div className="bp5-callout bp5-intent-danger bp5-icon-error" style={{ marginBottom: '20px' }}>
-                            {error}
+                        <div className="bp5-callout bp5-intent-danger" style={{ marginBottom: '20px' }}>
+                            ⚠️ {error}
                         </div>
                     )}
 
                     <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', height: '250px' }}>
                         <div className="bp5-card bp5-elevation-2" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                            <h4 className="bp5-heading">Répartition des menaces actives</h4>
+                            <h4 className="bp5-heading">📊 Répartition des menaces actives</h4>
                             <div style={{ flex: 1, position: 'relative' }}>
                                 <canvas id="threatChart"></canvas>
                             </div>
                         </div>
                         <div className="bp5-card bp5-elevation-2" style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                            <h4 className="bp5-heading">Statut du Réseau OSIRIS</h4>
+                            <h4 className="bp5-heading">🌐 Statut du Réseau OSIRIS</h4>
                             <div style={{ fontSize: '48px', color: '#E73C3E', fontWeight: 'bold' }}>{threats.length}</div>
                             <p className="bp5-text-muted">IP & Domaines bloqués en temps réel</p>
-                            <span className="bp5-tag bp5-intent-success bp5-icon-tick-circle bp5-large" style={{ marginTop: '10px'}}>Système BGP & DNS Sécurisés</span>
+                            <span className="bp5-tag bp5-intent-success bp5-large" style={{ marginTop: '10px'}}>✅ Système BGP & DNS Sécurisés</span>
                         </div>
                     </div>
 
                     <div className="bp5-card bp5-elevation-2">
-                        <h3 className="bp5-heading" style={{ marginBottom: '15px' }}>Menaces Identifiées (IP & Phishing)</h3>
+                        <h3 className="bp5-heading" style={{ marginBottom: '15px' }}>🎯 Menaces Identifiées (IP & Phishing)</h3>
                         
                         {loading && threats.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '40px' }}><div className="bp5-spinner"><div className="bp5-spinner-animation"></div></div></div>
@@ -196,11 +210,11 @@
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className="bp5-tag bp5-intent-danger bp5-icon-warning-sign">BLOQUÉ</span>
+                                                <span className="bp5-tag bp5-intent-danger">🛑 BLOQUÉ</span>
                                             </td>
                                             <td>
-                                                <button className="bp5-button bp5-minimal bp5-small bp5-icon-unlock" title="Mettre sur liste blanche (Simulation)"></button>
-                                                <button className="bp5-button bp5-minimal bp5-small bp5-icon-document" title="Voir les logs (Simulation)"></button>
+                                                <button className="bp5-button bp5-minimal bp5-small" title="Mettre sur liste blanche (Simulation)">🔓</button>
+                                                <button className="bp5-button bp5-minimal bp5-small" title="Voir les logs (Simulation)">📄</button>
                                             </td>
                                         </tr>
                                     ))}
