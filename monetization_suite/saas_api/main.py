@@ -5,9 +5,11 @@ import psycopg2
 import requests
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from psycopg2.extras import RealDictCursor
 
-app = FastAPI(title="OSINT ThreatFeed API (Premium)", version="1.0.0")
+app = FastAPI(title="OSINT ThreatFeed API", description="API de monétisation des flux OSINT")
 
+# Configuration CORS pour autoriser le frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
