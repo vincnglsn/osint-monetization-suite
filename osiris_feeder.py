@@ -57,4 +57,4 @@ if __name__ == "__main__":
         push_threat_to_saas(new_threat)
         time.sleep(1.5) # Pause pour ne pas surcharger le réseau
         
-    print("\n✅ Ingestion terminée. La base de données de vos clients est à jour !")
+    print("\n[SUCCES] Ingestion terminee. La base de donnees de vos clients est a jour !")
