@@ -50,6 +50,28 @@ class OsintThreatFeedClient:
         except requests.exceptions.HTTPError as err:
             raise Exception(f"Erreur d'exportation HTTP: {err}")
 
+    def get_threat_domains(self, limit: int = 100, min_confidence: float = 0.0):
+        """
+        Récupère la liste des domaines malveillants (Phishing, Ransomwares).
+        Possibilité de filtrer par limite et par indice de confiance minimum.
+        """
+        url = f"{self.base_url}/threats/domains"
+        params = {
+            "limit": limit,
+            "min_confidence": min_confidence
+        }
+        try:
+            response = requests.get(url, headers=self.headers, params=params)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.HTTPError as err:
+            if response.status_code == 403:
+                raise Exception("Accès refusé : Clé API invalide ou abonnement inactif.")
+            elif response.status_code == 429:
+                raise Exception("Rate Limit dépassé : Vous avez effectué trop de requêtes.")
+            else:
+                raise Exception(f"Erreur HTTP: {err}")
+
 if __name__ == "__main__":
     # Exemple d'utilisation
     print("--- Test du SDK OSINT ThreatFeed ---")

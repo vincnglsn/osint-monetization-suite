@@ -55,6 +55,12 @@ blocked_ips_db = [
     {"ip": "185.10.55.22", "threat": "Infrastructure Telecom Scan - Europe de l'Est", "confidence": 0.86},
 ]
 
+blocked_domains_db = [
+    {"domain": "update-windows-critical.com", "threat": "Phishing Microsoft 365", "confidence": 0.98},
+    {"domain": "secure-login-apple-id.net", "threat": "Phishing Apple ID", "confidence": 0.95},
+    {"domain": "ransom-payment-gateway.org", "threat": "Serveur de paiement Ransomware", "confidence": 0.99},
+]
+
 def init_db():
     if not DATABASE_URL:
         return
@@ -98,10 +104,32 @@ def init_db():
                     ON CONFLICT (ip) DO NOTHING
                 """, (threat["ip"], threat["threat"], threat["confidence"]))
 
+        # Table des domaines malveillants
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS domain_intelligence (
+                id SERIAL PRIMARY KEY,
+                domain VARCHAR NOT NULL UNIQUE,
+                threat_description VARCHAR NOT NULL,
+                confidence FLOAT NOT NULL,
+                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Insertion des domaines par défaut
+        cur.execute("SELECT COUNT(*) FROM domain_intelligence")
+        d_count = cur.fetchone()[0]
+        if d_count == 0:
+            for threat in blocked_domains_db:
+                cur.execute("""
+                    INSERT INTO domain_intelligence (domain, threat_description, confidence)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (domain) DO NOTHING
+                """, (threat["domain"], threat["threat"], threat["confidence"]))
+
         conn.commit()
         cur.close()
         conn.close()
-        print("[DATABASE] Supabase initialisé avec succès (api_keys + threat_intelligence) !")
+        print("[DATABASE] Supabase initialisé avec succès (api_keys, ips, domaines) !")
     except Exception as e:
         print(f"[DATABASE ERROR] Impossible de se connecter à Supabase: {e}")
 
@@ -321,6 +349,56 @@ def inject_new_threat(request: Request, ip: str, threat_description: str, confid
         cur.close()
         conn.close()
         return {"status": "success", "message": f"Menace {ip} injectée avec succès."}
+    except Exception as e:
+        print(f"[DATABASE ERROR] {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'insertion.")
+
+@app.get("/api/v1/threats/domains", dependencies=[Depends(verify_stripe_subscription)])
+@limiter.limit("60/minute")
+def get_threat_domains(request: Request, limit: int = 100, min_confidence: float = 0.0):
+    """
+    [NOUVEAU] Récupère les Noms de Domaines malveillants (Phishing, Ransomware).
+    """
+    if DATABASE_URL:
+        try:
+            conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT domain, threat_description as threat, confidence, detected_at FROM domain_intelligence WHERE confidence >= %s ORDER BY detected_at DESC LIMIT %s",
+                (min_confidence, limit)
+            )
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+            return {"status": "success", "source": "OSIRIS AI (Supabase)", "count": len(rows), "data": rows}
+        except Exception as e:
+            print(f"[DATABASE ERROR] {e}")
+            return {"status": "success", "source": "OSIRIS AI (Fallback Mém)", "data": blocked_domains_db}
+    
+    # Fallback mémoire
+    filtered_db = [t for t in blocked_domains_db if t["confidence"] >= min_confidence][:limit]
+    return {"status": "success", "source": "OSIRIS AI (Mémoire)", "count": len(filtered_db), "data": filtered_db}
+
+@app.post("/api/v1/admin/domains", dependencies=[Depends(verify_admin_key)])
+def inject_new_domain(request: Request, domain: str, threat_description: str, confidence: float):
+    """
+    [ADMIN] Injecte un nom de domaine malveillant en base de données.
+    """
+    if not DATABASE_URL:
+        raise HTTPException(status_code=500, detail="Base de données non configurée.")
+    
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO domain_intelligence (domain, threat_description, confidence)
+            VALUES (%s, %s, %s)
+            ON CONFLICT (domain) DO UPDATE SET confidence = EXCLUDED.confidence, detected_at = CURRENT_TIMESTAMP
+        """, (domain, threat_description, confidence))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return {"status": "success", "message": f"Domaine {domain} injecté avec succès."}
     except Exception as e:
         print(f"[DATABASE ERROR] {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de l'insertion.")
