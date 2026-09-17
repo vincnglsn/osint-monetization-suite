@@ -6,8 +6,16 @@ import requests
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from psycopg2.extras import RealDictCursor
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+# Initialisation du Limiter (basé sur l'IP du visiteur)
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(title="OSINT ThreatFeed API", description="API de monétisation des flux OSINT")
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Configuration CORS pour autoriser le frontend
 app.add_middleware(
@@ -52,6 +60,8 @@ def init_db():
     try:
         conn = psycopg2.connect(DATABASE_URL)
         cur = conn.cursor()
+        
+        # Table des clés API
         cur.execute("""
             CREATE TABLE IF NOT EXISTS api_keys (
                 api_key VARCHAR PRIMARY KEY,
@@ -64,10 +74,33 @@ def init_db():
             VALUES ('premium_subscriber_key_49usd', 'demo@admin.com')
             ON CONFLICT (api_key) DO NOTHING
         """)
+
+        # Table des menaces OSINT
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS threat_intelligence (
+                id SERIAL PRIMARY KEY,
+                ip VARCHAR NOT NULL UNIQUE,
+                threat_description VARCHAR NOT NULL,
+                confidence FLOAT NOT NULL,
+                detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        
+        # Insertion des données par défaut si la table est vide
+        cur.execute("SELECT COUNT(*) FROM threat_intelligence")
+        count = cur.fetchone()[0]
+        if count == 0:
+            for threat in blocked_ips_db:
+                cur.execute("""
+                    INSERT INTO threat_intelligence (ip, threat_description, confidence)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (ip) DO NOTHING
+                """, (threat["ip"], threat["threat"], threat["confidence"]))
+
         conn.commit()
         cur.close()
         conn.close()
-        print("[DATABASE] Supabase initialisé avec succès !")
+        print("[DATABASE] Supabase initialisé avec succès (api_keys + threat_intelligence) !")
     except Exception as e:
         print(f"[DATABASE ERROR] Impossible de se connecter à Supabase: {e}")
 
@@ -179,5 +212,22 @@ def verify_stripe_subscription(x_api_key: str = Header(...)):
         return VALID_API_KEYS[x_api_key]
 
 @app.get("/api/v1/threats/ips", dependencies=[Depends(verify_stripe_subscription)])
-def get_threat_ips():
-    return {"status": "success", "source": "OSIRIS AI", "data": blocked_ips_db}
+@limiter.limit("30/minute")  # Protection anti-abus : 30 requêtes max par minute par IP
+def get_threat_ips(request: Request):
+    if DATABASE_URL:
+        try:
+            conn = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+            cur = conn.cursor()
+            cur.execute("SELECT ip, threat_description as threat, confidence, detected_at FROM threat_intelligence ORDER BY detected_at DESC")
+            rows = cur.fetchall()
+            cur.close()
+            conn.close()
+            
+            # Formatage pour matcher l'ancien dictionnaire
+            return {"status": "success", "source": "OSIRIS AI (Supabase)", "data": rows}
+        except Exception as e:
+            print(f"[DATABASE ERROR] Erreur lors de la récupération des menaces: {e}")
+            # Fallback sur les données en mémoire
+            return {"status": "success", "source": "OSIRIS AI (Fallback Mém)", "data": blocked_ips_db}
+    
+    return {"status": "success", "source": "OSIRIS AI (Mémoire)", "data": blocked_ips_db}
