@@ -122,11 +122,38 @@ def send_api_key_email(recipient_email: str, api_key: str):
         "content-type": "application/json"
     }
     
+    html_email = f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color: #f4f4f5; padding: 40px; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: #0ea5e9; text-align: center;">Bienvenue sur OSINT ThreatFeed</h2>
+            <p>Bonjour !</p>
+            <p>Merci pour votre confiance. Votre accès à l'intelligence artificielle OSIRIS est désormais activé.</p>
+            
+            <div style="background-color: #0f172a; color: #38bdf8; padding: 20px; border-radius: 6px; text-align: center; margin: 30px 0; font-family: monospace; font-size: 18px;">
+                <strong>{api_key}</strong>
+            </div>
+            
+            <h3>Comment démarrer ?</h3>
+            <ol style="line-height: 1.6;">
+                <li>Utilisez cette clé dans le header <code>x-api-key</code> de vos requêtes HTTP.</li>
+                <li>Accédez au flux en temps réel sur <code>/api/v1/threats/ips</code>.</li>
+                <li>Consultez la documentation OpenAPI sur <code>/docs</code>.</li>
+            </ol>
+            
+            <p style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; font-size: 12px; color: #999; text-align: center;">
+                Ce message a été généré automatiquement. Conservez votre clé API en toute sécurité.
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+    
     payload = {
         "sender": {"name": "OSINT ThreatFeed", "email": EMAIL_SENDER},
         "to": [{"email": recipient_email}],
-        "subject": "Bienvenue dans OSINT ThreatFeed ! Voici votre clé API",
-        "textContent": f"Bonjour !\n\nMerci pour votre achat. Voici votre clé d'accès exclusive à l'API OSINT ThreatFeed :\n\n{api_key}\n\nGardez cette clé précieusement, elle vous servira de mot de passe pour vous connecter à l'API.\n\nÀ très vite,\nL'équipe OSINT"
+        "subject": "🚀 Votre clé API OSINT ThreatFeed est prête !",
+        "htmlContent": html_email
     }
 
     try:
