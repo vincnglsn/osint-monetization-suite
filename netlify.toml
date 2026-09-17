@@ -1,0 +1,9 @@
+[build]
+  # Dossier contenant les fichiers HTML (ici la racine)
+  publish = "."
+
+[[redirects]]
+  # Permet de toujours retomber sur la landing page si URL inconnue
+  from = "/*"
+  to = "/index.html"
+  status = 200
