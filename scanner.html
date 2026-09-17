@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSIRIS - Scanner de Vulnérabilité Gratuit</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: { colors: { cyber: { 900: '#0f172a', 800: '#1e293b', blue: '#38bdf8', neon: '#0ea5e9' } } }
+            }
+        }
+    </script>
+</head>
+<body class="bg-cyber-900 text-slate-300 font-sans min-h-screen flex flex-col items-center justify-center p-4">
+
+    <div class="max-w-xl w-full text-center mb-8">
+        <h1 class="text-4xl font-extrabold text-white mb-4">🛡️ OSIRIS <span class="text-cyber-blue">Scanner</span></h1>
+        <p class="text-slate-400">Vérifiez instantanément si votre serveur ou adresse IP est listé dans les bases de données de botnets ou visé par des attaques DDoS actives.</p>
+    </div>
+
+    <div class="bg-cyber-800 p-8 rounded-2xl border border-slate-700 shadow-[0_0_30px_rgba(56,189,248,0.1)] w-full max-w-xl">
+        <div id="input-section">
+            <label class="block text-sm font-medium text-slate-400 mb-2">Entrez une Adresse IP ou un Nom de Domaine</label>
+            <div class="flex gap-3">
+                <input id="targetInput" type="text" placeholder="ex: 192.168.1.1 ou monsite.com" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-4 text-white focus:border-cyber-blue outline-none text-lg">
+                <button onclick="startScan()" class="bg-cyber-blue hover:bg-neon text-white font-bold py-4 px-8 rounded-lg transition-all shadow-[0_0_15px_rgba(56,189,248,0.3)]">
+                    Scanner
+                </button>
+            </div>
+        </div>
+
+        <div id="scanning-section" class="hidden py-8 text-center">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyber-blue mb-4"></div>
+            <p id="scan-text" class="text-cyber-blue font-mono text-sm uppercase tracking-widest">Connexion aux serveurs OSIRIS...</p>
+        </div>
+
+        <div id="result-section" class="hidden pt-6">
+            <div class="bg-red-900/30 border border-red-500/50 rounded-lg p-6 mb-6">
+                <div class="flex items-center gap-3 mb-2">
+                    <span class="text-2xl">⚠️</span>
+                    <h3 class="text-red-400 font-bold text-xl">Vulnérabilité Détectée</h3>
+                </div>
+                <p class="text-slate-300">La cible <strong id="target-display" class="text-white"></strong> n'est actuellement pas protégée par le bouclier réseau OSIRIS AI.</p>
+                <p class="text-sm text-slate-400 mt-2">Votre serveur est exposé à +12 400 attaques automatisées recensées ces dernières 24 heures (Botnets, Brute-force, DDoS).</p>
+            </div>
+
+            <a href="index.html" class="block w-full bg-slate-100 hover:bg-white text-cyber-900 text-center px-6 py-4 rounded-xl text-lg font-bold transition-all">
+                Activer le pare-feu OSIRIS AI (49€/mois)
+            </a>
+        </div>
+    </div>
+
+    <script>
+        function startScan() {
+            const target = document.getElementById('targetInput').value;
+            if(!target) return;
+
+            document.getElementById('input-section').classList.add('hidden');
+            document.getElementById('scanning-section').classList.remove('hidden');
+            
+            const scanTexts = [
+                "Analyse des tables BGP...",
+                "Recherche sur le Dark Web...",
+                "Vérification des signatures DDoS...",
+                "Corrélation des données terminée."
+            ];
+            
+            let i = 0;
+            const interval = setInterval(() => {
+                if(i < scanTexts.length) {
+                    document.getElementById('scan-text').innerText = scanTexts[i];
+                    i++;
+                } else {
+                    clearInterval(interval);
+                    document.getElementById('scanning-section').classList.add('hidden');
+                    document.getElementById('target-display').innerText = target;
+                    document.getElementById('result-section').classList.remove('hidden');
+                }
+            }, 800);
+        }
+    </script>
+</body>
+</html>
