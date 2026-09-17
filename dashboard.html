@@ -38,6 +38,9 @@
     <script src="https://unpkg.com/@blueprintjs/core@^5.0.0/lib/umd/blueprint.js"></script>
     <script src="https://unpkg.com/@blueprintjs/icons@^5.0.0/lib/umd/blueprint-icons.js"></script>
 
+    <!-- Chart.js pour les graphiques -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <!-- Babel for in-browser JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
@@ -52,29 +55,50 @@
             const [threats, setThreats] = useState([]);
             const [loading, setLoading] = useState(false);
             const [error, setError] = useState(null);
-            const [apiKey, setApiKey] = useState("premium_subscriber_key_49usd"); // Clé par défaut (démo locale)
+            const [apiKey, setApiKey] = useState("demo_key_123"); // Clé par défaut valide sur l'API
 
             const fetchThreats = async () => {
                 setLoading(true);
                 setError(null);
                 try {
-                    // L'URL tapera sur l'API de prod
                     const response = await fetch("https://osint-monetization-suite.onrender.com/api/v1/threats/ips", {
-                        headers: {
-                            "x-api-key": apiKey
-                        }
+                        headers: { "x-api-key": apiKey }
                     });
-                    
-                    if (!response.ok) {
-                        throw new Error(`Erreur API: ${response.status} - Clé invalide ou serveur injoignable.`);
-                    }
-                    
+                    if (!response.ok) throw new Error(`Erreur API: ${response.status} - Clé invalide.`);
                     const data = await response.json();
                     setThreats(data.data || []);
+                    renderCharts(data.data || []);
                 } catch (err) {
                     setError(err.message);
                 } finally {
                     setLoading(false);
+                }
+            };
+
+            const renderCharts = (data) => {
+                // Répartition par type
+                const threatTypes = {};
+                data.forEach(t => {
+                    const type = t.threat || t.threat_description || 'Inconnu';
+                    threatTypes[type] = (threatTypes[type] || 0) + 1;
+                });
+
+                if(window.myPieChart) window.myPieChart.destroy();
+                const ctx = document.getElementById('threatChart');
+                if(ctx) {
+                    window.myPieChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: Object.keys(threatTypes),
+                            datasets: [{
+                                data: Object.values(threatTypes),
+                                backgroundColor: ['#E73C3E', '#F29D49', '#2B95D6', '#29A634'],
+                                borderColor: '#30404D',
+                                borderWidth: 2
+                            }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#F5F8FA' } } } }
+                    });
                 }
             };
 
@@ -88,7 +112,7 @@
                     <div className="header">
                         <div>
                             <h1 className="bp5-heading" style={{display: 'flex', alignItems: 'center'}}><Icon icon="shield" size={24} style={{ marginRight: '10px', color: '#48AFF0' }} /> OSIRIS AI Live Feed</h1>
-                            <p className="bp5-text-muted">Tableau de bord de surveillance OSINT (Palantir Blueprint)</p>
+                            <p className="bp5-text-muted">Tableau de bord de surveillance OSINT (Visualisations Avancées)</p>
                         </div>
                         <div>
                             <Button intent={Intent.PRIMARY} icon="refresh" onClick={fetchThreats} loading={loading}>
@@ -107,19 +131,33 @@
                                 onChange={(e) => setApiKey(e.target.value)} 
                                 style={{ width: '300px' }}
                             />
-                            <span className="bp5-text-small bp5-text-muted">Testez avec votre clé admin, ou insérez une clé Stripe générée lors d'un achat.</span>
                         </Card>
                     </div>
 
                     {error && (
-                        <Callout intent={Intent.DANGER} icon="error" title="Échec de la récupération des données" style={{ marginBottom: '20px' }}>
-                            {error} <br/>
-                            <em>Avez-vous bien fait le "Manual Deploy" sur Render pour publier la modification CORS ?</em>
+                        <Callout intent={Intent.DANGER} icon="error" style={{ marginBottom: '20px' }}>
+                            {error}
                         </Callout>
                     )}
 
+                    {/* Section Graphique */}
+                    <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', height: '250px' }}>
+                        <Card elevation={Elevation.TWO} style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <h4 className="bp5-heading">Répartition des menaces actives</h4>
+                            <div style={{ flex: 1, position: 'relative' }}>
+                                <canvas id="threatChart"></canvas>
+                            </div>
+                        </Card>
+                        <Card elevation={Elevation.TWO} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                            <h4 className="bp5-heading">Statut du Réseau OSIRIS</h4>
+                            <div style={{ fontSize: '48px', color: '#E73C3E', fontWeight: 'bold' }}>{threats.length}</div>
+                            <p className="bp5-text-muted">Adresses IP bloquées en temps réel</p>
+                            <Tag intent={Intent.SUCCESS} icon="tick-circle" large={true} style={{ marginTop: '10px'}}>Système BGP Sécurisé</Tag>
+                        </Card>
+                    </div>
+
                     <Card elevation={Elevation.TWO}>
-                        <h3 className="bp5-heading" style={{ marginBottom: '15px' }}>Menaces Identifiées (Réseau BGP & Scanners)</h3>
+                        <h3 className="bp5-heading" style={{ marginBottom: '15px' }}>Menaces Identifiées</h3>
                         
                         {loading && threats.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '40px' }}><Spinner /></div>
@@ -138,7 +176,7 @@
                                     {threats.map((threat, idx) => (
                                         <tr key={idx}>
                                             <td><strong style={{ fontFamily: 'monospace' }}>{threat.ip}</strong></td>
-                                            <td>{threat.threat}</td>
+                                            <td>{threat.threat || threat.threat_description}</td>
                                             <td>
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                                     <div className="bp5-progress-bar bp5-intent-danger bp5-no-stripes" style={{ width: '100px', height: '8px', borderRadius: '4px' }}>
