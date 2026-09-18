@@ -402,3 +402,19 @@ def inject_new_domain(request: Request, domain: str, threat_description: str, co
     except Exception as e:
         print(f"[DATABASE ERROR] {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de l'insertion.")
+
+ i m p o r t   u r l l i b . r e q u e s t 
+ @ a p p . g e t ( ' / a p i / v 1 / t r a c k ' ) 
+ d e f   t r a c k _ v i s i t ( p a g e :   s t r   =   ' U n k n o w n ' ) : 
+         t r y : 
+                 t o k e n   =   o s . g e t e n v ( ' T E L E G R A M _ B O T _ T O K E N ' ,   ' 8 9 0 7 7 3 6 8 1 5 : A A H F L m K E g l x f H K 5 S O o X y 9 4 O b b o _ U f y c 3 A P o ' ) 
+                 c h a t _ i d   =   o s . g e t e n v ( ' T E L E G R A M _ C H A T _ I D ' ,   ' 6 0 2 0 3 4 2 3 4 4 ' ) 
+                 m s g   =   f ' =Ø@Ü  N o u v e l l e   v i s i t e   e n   d i r e c t   s u r   :   { p a g e } ' 
+                 u r l   =   f ' h t t p s : / / a p i . t e l e g r a m . o r g / b o t { t o k e n } / s e n d M e s s a g e ? c h a t _ i d = { c h a t _ i d } & t e x t = { u r l l i b . p a r s e . q u o t e ( m s g ) } ' 
+                 u r l l i b . r e q u e s t . u r l o p e n ( u r l ,   t i m e o u t = 2 ) 
+         e x c e p t   E x c e p t i o n   a s   e : 
+                 p a s s 
+         r e t u r n   { ' s t a t u s ' :   ' o k ' } 
+ 
+ 
+ 
