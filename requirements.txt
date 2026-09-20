@@ -5,3 +5,4 @@ google-genai
 stripe
 psycopg2-binary
 slowapi
+requests

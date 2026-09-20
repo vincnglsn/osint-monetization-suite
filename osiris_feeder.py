@@ -1,3 +1,4 @@
+import os
 import time
 import requests
 import random
@@ -9,9 +10,9 @@ from datetime import datetime
 # Ce script tourne sur votre machine (ou un cron) et alimente votre SaaS en données fraîches.
 # Il se connecte à votre endpoint Admin privé pour injecter les menaces.
 
-# Remplacez par l'URL de votre serveur Render et votre clé admin
-API_BASE_URL = "https://osint-monetization-suite.onrender.com/api/v1"
-ADMIN_API_KEY = "super_secret_admin_osiris_2026"
+# Configuration via variables d'environnement (ne jamais commiter la clé admin).
+API_BASE_URL = os.environ.get("OSIRIS_API_BASE_URL", "https://osint-monetization-suite.onrender.com/api/v1")
+ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "")
 
 def generate_simulated_threat():
     """Génère une menace OSINT hautement réaliste (Simulation OSIRIS AI)"""
@@ -68,7 +69,13 @@ if __name__ == "__main__":
     print("="*50)
     print(f"[{datetime.now().strftime('%H:%M:%S')}] DÉMARRAGE DU FEEDER OSIRIS AI")
     print("="*50)
-    
+
+    if not ADMIN_API_KEY:
+        raise SystemExit(
+            "[X] ADMIN_API_KEY n'est pas définie. Définissez-la avant de lancer le feeder "
+            '(PowerShell : $env:ADMIN_API_KEY = "votre_cle").'
+        )
+
     # Simulation d'une boucle d'ingestion continue
     for _ in range(6):
         if random.random() > 0.3:

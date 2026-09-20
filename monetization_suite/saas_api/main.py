@@ -267,10 +267,15 @@ def verify_stripe_subscription(x_api_key: str = Header(...)):
             raise HTTPException(status_code=403, detail="Abonnement inactif ou clé API invalide.")
         return VALID_API_KEYS[x_api_key]
 
-ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "super_secret_admin_osiris_2026")
+ADMIN_API_KEY = os.getenv("ADMIN_API_KEY", "")
 
 def verify_admin_key(x_admin_key: str = Header(...)):
-    if x_admin_key != ADMIN_API_KEY:
+    if not ADMIN_API_KEY:
+        raise HTTPException(
+            status_code=503,
+            detail="Endpoints admin désactivés : la variable ADMIN_API_KEY n'est pas configurée.",
+        )
+    if not secrets.compare_digest(x_admin_key, ADMIN_API_KEY):
         raise HTTPException(status_code=403, detail="Accès admin refusé.")
     return True
 
@@ -403,18 +408,29 @@ def inject_new_domain(request: Request, domain: str, threat_description: str, co
         print(f"[DATABASE ERROR] {e}")
         raise HTTPException(status_code=500, detail="Erreur lors de l'insertion.")
 
- i m p o r t   u r l l i b . r e q u e s t 
- @ a p p . g e t ( ' / a p i / v 1 / t r a c k ' ) 
- d e f   t r a c k _ v i s i t ( p a g e :   s t r   =   ' U n k n o w n ' ) : 
-         t r y : 
-                 t o k e n   =   o s . g e t e n v ( ' T E L E G R A M _ B O T _ T O K E N ' ,   ' 8 9 0 7 7 3 6 8 1 5 : A A H F L m K E g l x f H K 5 S O o X y 9 4 O b b o _ U f y c 3 A P o ' ) 
-                 c h a t _ i d   =   o s . g e t e n v ( ' T E L E G R A M _ C H A T _ I D ' ,   ' 6 0 2 0 3 4 2 3 4 4 ' ) 
-                 m s g   =   f ' =�@�  N o u v e l l e   v i s i t e   e n   d i r e c t   s u r   :   { p a g e } ' 
-                 u r l   =   f ' h t t p s : / / a p i . t e l e g r a m . o r g / b o t { t o k e n } / s e n d M e s s a g e ? c h a t _ i d = { c h a t _ i d } & t e x t = { u r l l i b . p a r s e . q u o t e ( m s g ) } ' 
-                 u r l l i b . r e q u e s t . u r l o p e n ( u r l ,   t i m e o u t = 2 ) 
-         e x c e p t   E x c e p t i o n   a s   e : 
-                 p a s s 
-         r e t u r n   { ' s t a t u s ' :   ' o k ' } 
- 
- 
- 
+
+
+
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+
+
+@app.get("/api/v1/track")
+@limiter.limit("30/minute")
+def track_visit(request: Request, page: str = "Unknown"):
+    """
+    Notifie une visite en direct via Telegram. Silencieux si le bot n'est pas configure.
+    """
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return {"status": "ok"}
+
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+            json={"chat_id": TELEGRAM_CHAT_ID, "text": f"Nouvelle visite en direct sur : {page}"},
+            timeout=2,
+        )
+    except Exception as e:
+        print(f"[TRACK ERROR] {e}")
+
+    return {"status": "ok"}
