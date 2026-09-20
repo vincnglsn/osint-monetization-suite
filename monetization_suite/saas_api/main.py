@@ -18,18 +18,26 @@ app = FastAPI(title="OSINT ThreatFeed API", description="API de monétisation de
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Configuration CORS pour autoriser le frontend
+# Configuration CORS pour autoriser le frontend.
+# ALLOWED_ORIGINS accepte une liste separee par des virgules pour restreindre les domaines.
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    # L'API s'authentifie par l'en-tete x-api-key, jamais par cookie : garder
+    # allow_credentials a False evite que Starlette renvoie en echo n'importe
+    # quelle origine appelante.
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
 # Clés d'environnement
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "sk_test_dummy")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_dummy")
+# Mode local uniquement : accepte un webhook dont la signature est invalide.
+ALLOW_UNVERIFIED_STRIPE_WEBHOOK = os.getenv("ALLOW_UNVERIFIED_STRIPE_WEBHOOK", "") == "1"
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 # Configuration Email
@@ -205,8 +213,13 @@ async def stripe_webhook(request: Request):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid payload")
     except stripe.error.SignatureVerificationError:
-        if STRIPE_WEBHOOK_SECRET != "whsec_dummy":
+        # Echec ferme par defaut : sans signature valide, aucune cle API n'est generee.
+        if not ALLOW_UNVERIFIED_STRIPE_WEBHOOK:
             raise HTTPException(status_code=400, detail="Invalid signature")
+        print(
+            "[STRIPE] ATTENTION : signature non verifiee acceptee car "
+            "ALLOW_UNVERIFIED_STRIPE_WEBHOOK=1. A n'utiliser qu'en local."
+        )
         event = {"type": "checkout.session.completed", "data": {"object": {"customer_details": {"email": "contact@startup.com"}}}}
 
     if event["type"] == "checkout.session.completed":
