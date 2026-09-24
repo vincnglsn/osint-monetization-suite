@@ -63,9 +63,17 @@
             statusDiv.classList.remove('hidden');
 
             try {
-                const res = await fetch(`https://osint-monetization-suite.onrender.com/api/v1/admin/threats?ip=${ip}&threat_description=${encodeURIComponent(threat)}&confidence=${confidence}`, {
+                const res = await fetch(`https://osint-monetization-suite.onrender.com/api/v1/admin/threats`, {
                     method: 'POST',
-                    headers: { 'x-admin-key': adminKey }
+                    headers: {
+                        'x-admin-key': adminKey,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ip,
+                        threat_description: threat,
+                        confidence: parseFloat(confidence)
+                    })
                 });
 
                 const data = await res.json();
