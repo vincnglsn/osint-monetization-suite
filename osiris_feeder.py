@@ -56,7 +56,7 @@ def push_threat_to_saas(threat_data, is_domain=False):
     }
     
     try:
-        response = requests.post(url, headers=headers, params=threat_data)
+        response = requests.post(url, headers=headers, json=threat_data, timeout=10)
         if response.status_code == 200:
             target = threat_data.get("domain") or threat_data.get("ip")
             print(f"[+] INJECTÉ : {target} ({threat_data['threat_description']}) - Confiance: {threat_data['confidence']}")

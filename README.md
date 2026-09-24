@@ -12,6 +12,8 @@ Plateforme SaaS complète (Backend + Frontend + Billing) de monétisation de flu
 ## 📦 Fonctionnalités
 - **`GET /api/v1/threats/ips`** : Endpoint premium protégé par API Key, retourne la liste des menaces avec des filtres (`limit`, `min_confidence`). Rate Limiting : 60 req/min.
 - **`POST /api/v1/admin/threats`** : Endpoint caché pour injecter dynamiquement des menaces depuis le feeder.
+  Attend un body JSON `{"ip": "...", "threat_description": "...", "confidence": 0.0-1.0}` (validé par Pydantic).
+- **`GET /health`** : Sonde de disponibilité (utile pour Render/uptime monitors), renvoie aussi si `DATABASE_URL` est configurée.
 - **`osiris_feeder.py`** : Script Python autonome pour l'ingestion de données OSINT.
 - **`osint_sdk.py`** : SDK Client Python prêt à être distribué aux abonnés.
 
