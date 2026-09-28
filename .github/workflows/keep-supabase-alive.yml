@@ -1,0 +1,23 @@
+name: Keep Supabase active
+
+# Supabase pauses free projects after ~7 days without database activity.
+# An invalid API key forces a real SELECT on api_keys: 403 means the database
+# answered; anything else (500 = database down or paused) fails the run.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+jobs:
+  query-db:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Trigger a database query through the API
+        run: |
+          code=$(curl --silent --output /dev/null --write-out "%{http_code}" --max-time 90 \
+            --retry 3 --retry-delay 10 --retry-all-errors \
+            -H "x-api-key: keep-alive-probe" \
+            https://osint-monetization-suite.onrender.com/api/v1/threats/ips)
+          echo "HTTP $code"
+          test "$code" = "403"
