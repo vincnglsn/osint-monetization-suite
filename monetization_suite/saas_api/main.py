@@ -50,6 +50,8 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "sk_test_dummy")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "whsec_dummy")
 # Mode local uniquement : accepte un webhook dont la signature est invalide.
 ALLOW_UNVERIFIED_STRIPE_WEBHOOK = os.getenv("ALLOW_UNVERIFIED_STRIPE_WEBHOOK", "") == "1"
+# Le compte Stripe vend d'autres produits : seul ce lien de paiement donne droit a une cle API.
+OSINT_PAYMENT_LINK_ID = "plink_1UGLo7E925DdRdvYEhKI3und"
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 
 # Configuration Email
@@ -283,12 +285,16 @@ async def stripe_webhook(request: Request):
             "Signature Stripe non verifiee acceptee car ALLOW_UNVERIFIED_STRIPE_WEBHOOK=1. "
             "A n'utiliser qu'en local."
         )
-        event = {"type": "checkout.session.completed", "data": {"object": {"customer_details": {"email": "contact@startup.com"}}}}
+        event = {"type": "checkout.session.completed", "data": {"object": {"payment_link": OSINT_PAYMENT_LINK_ID, "customer_details": {"email": "contact@startup.com"}}}}
 
     if event["type"] == "checkout.session.completed":
         session = event["data"]["object"]
 
         session_dict = session.to_dict() if hasattr(session, "to_dict") else session
+        if session_dict.get("payment_link") != OSINT_PAYMENT_LINK_ID:
+            logger.info("Paiement ignore : lien %s hors OSINT", session_dict.get("payment_link"))
+            return {"status": "ignored"}
+
         customer_email = session_dict.get("customer_details", {}).get("email", "unknown@email.com")
 
         # 1. Génération de la clé API
